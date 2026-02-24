@@ -1,0 +1,9 @@
+{env.APP_DOMAIN} {
+    encode gzip zstd
+
+    reverse_proxy frontend:80 {
+        header_up Host              {host}
+        header_up X-Real-IP         {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}

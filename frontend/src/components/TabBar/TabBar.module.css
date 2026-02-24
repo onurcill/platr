@@ -1,0 +1,110 @@
+.tabBar {
+  display: flex;
+  align-items: center;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  min-height: 38px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.tabList {
+  display: flex;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  min-width: 0;
+}
+.tabList::-webkit-scrollbar { display: none; }
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  min-width: 130px;
+  max-width: 210px;
+  height: 38px;
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  border-bottom: 2px solid transparent;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+  position: relative;
+  user-select: none;
+}
+.tab:hover { background: var(--bg-hover); color: var(--text-secondary); }
+.tab:hover .closeBtn { opacity: 1; }
+
+.tabActive {
+  background: var(--bg-base) !important;
+  color: var(--text-primary) !important;
+  border-bottom-color: var(--accent) !important;
+}
+.tabActive .closeBtn { opacity: 1; }
+
+.tabPinned { min-width: 90px; }
+
+.tabIcon { display: flex; align-items: center; flex-shrink: 0; }
+.iconUnary  { color: var(--cyan); }
+.iconStream { color: var(--stream); }
+
+.pinIcon { color: var(--accent); opacity: 0.6; flex-shrink: 0; }
+
+.tabTitle {
+  flex: 1; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; font-size: 12px;
+  display: flex; align-items: center; gap: 4px;
+}
+
+.dirty {
+  display: inline-block; width: 5px; height: 5px;
+  border-radius: 50%; background: var(--warning); flex-shrink: 0;
+}
+
+.statusDot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.statusDotOk  { background: var(--ok); }
+.statusDotErr { background: var(--error); }
+
+.closeBtn {
+  opacity: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: var(--radius-xs);
+  color: var(--text-muted); flex-shrink: 0;
+  transition: opacity var(--transition), color var(--transition), background var(--transition);
+}
+.closeBtn:hover { color: var(--text-primary); background: var(--bg-elevated); }
+
+.newTabBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 38px; color: var(--text-muted); flex-shrink: 0;
+  transition: color var(--transition), background var(--transition);
+  border-left: 1px solid var(--border);
+}
+.newTabBtn:hover { color: var(--accent); background: var(--accent-dim); }
+
+/* Context menu */
+.contextMenu {
+  position: fixed; z-index: 9999;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 4px; min-width: 190px;
+  display: flex; flex-direction: column; gap: 1px;
+  animation: fadeIn 0.1s ease;
+}
+.contextMenu button {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--text-secondary);
+  text-align: left; width: 100%;
+}
+.contextMenu button:hover { background: var(--bg-hover); color: var(--text-primary); }
+.contextDivider { height: 1px; background: var(--border); margin: 3px 4px; }
+.contextDanger { color: var(--error) !important; }
+.contextDanger:hover { background: var(--error-dim) !important; }

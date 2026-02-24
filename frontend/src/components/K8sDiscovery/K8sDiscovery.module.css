@@ -1,0 +1,83 @@
+.panel { background: var(--bg-surface); overflow-y: auto; display: flex; flex-direction: column; }
+
+.error { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; background: rgba(248,113,113,0.1); color: #f87171; font-size: 11px; gap: 8px; }
+.error button { background: none; border: none; color: #f87171; cursor: pointer; display: flex; }
+
+.section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.sectionLabel { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 6px; }
+
+/* Upload */
+.uploadRow { display: flex; gap: 6px; margin-bottom: 8px; }
+.uploadName { flex: 1; height: 28px; padding: 0 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 11px; }
+.uploadName:focus { outline: none; border-color: var(--accent); }
+.uploadBtn { display: flex; align-items: center; gap: 5px; padding: 0 12px; height: 28px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 11px; cursor: pointer; white-space: nowrap; }
+.uploadBtn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.uploadBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Config items */
+.configItem { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: var(--radius-sm); cursor: pointer; }
+.configItem:hover { background: var(--bg-hover); }
+.configActive { background: var(--accent-dim); }
+.configName { flex: 1; font-size: 12px; color: var(--text-primary); font-weight: 500; }
+.configCtx { font-size: 10px; color: var(--text-muted); }
+.configDel { background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; padding: 2px; border-radius: 3px; }
+.configDel:hover { color: #f87171; }
+
+/* Selectors */
+.selectors { display: flex; gap: 6px; align-items: center; }
+.select { flex: 1; height: 28px; padding: 0 28px 0 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 11px; transition: border-color var(--transition); }
+.select:focus { outline: none; border-color: var(--accent); }
+.refreshBtn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--text-muted); cursor: pointer; }
+.refreshBtn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Forwards */
+.fwdRow { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+.fwdIcon { color: var(--cyan); }
+.fwdName { flex: 1; font-size: 11px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fwdPort { font-size: 10px; color: var(--text-muted); font-family: monospace; }
+.fwdStop { background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; padding: 2px; }
+.fwdStop:hover { color: #f87171; }
+
+/* Service list */
+.serviceList { flex: 1; display: flex; flex-direction: column; }
+.empty { padding: 20px; text-align: center; font-size: 11px; color: var(--text-muted); }
+.loadingRow { display: flex; align-items: center; gap: 8px; padding: 16px; font-size: 11px; color: var(--text-muted); }
+
+.svcGroup { display: flex; flex-direction: column; }
+.svcRow { display: flex; align-items: center; gap: 6px; padding: 7px 14px; cursor: pointer; }
+.svcRow:hover { background: var(--bg-hover); }
+.svcConnected { background: rgba(74,222,128,0.04); }
+.chevron { color: var(--text-muted); flex-shrink: 0; }
+.svcName { flex: 1; font-size: 12px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.connectedDot { color: var(--cyan); flex-shrink: 0; }
+
+/* Service panel */
+.svcPanel { margin: 0 14px 8px; padding: 10px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; gap: 7px; }
+
+.portRow { display: flex; gap: 6px; align-items: center; }
+.portSelect { flex: 1; height: 26px; padding: 0 28px 0 6px; background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 11px; transition: border-color var(--transition); }
+.portSelect:focus { outline: none; border-color: var(--accent); }
+
+.tlsBadge { font-size: 9px; font-weight: 800; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 3px; cursor: pointer; border: none; line-height: 1.5; }
+.tlsOff  { background: var(--bg-elevated); color: var(--text-muted); border-radius: var(--radius-xs); padding: 2px 5px; font-size: 10px; font-weight: 700; }
+.tlsSkip { background: var(--warning-dim); color: var(--warning); border-radius: var(--radius-xs); padding: 2px 5px; font-size: 10px; font-weight: 700; }
+.tlsOn   { background: var(--cyan-dim); color: var(--cyan); border-radius: var(--radius-xs); padding: 2px 5px; font-size: 10px; font-weight: 700; }
+
+.metaLabel { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+.metaRow { display: flex; gap: 4px; align-items: center; }
+.metaInput { flex: 1; height: 22px; padding: 0 6px; background: var(--bg-base); border: 1px solid var(--border); border-radius: 3px; color: var(--text-primary); font-size: 10px; font-family: monospace; }
+.metaInput:focus { outline: none; border-color: var(--accent); }
+.metaRemove { display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: none; background: none; color: var(--text-muted); cursor: pointer; border-radius: 3px; }
+.metaRemove:hover { color: #f87171; }
+.metaAdd { display: flex; align-items: center; gap: 3px; width: fit-content; padding: 2px 6px; border: 1px dashed var(--border); border-radius: 3px; background: none; color: var(--text-muted); font-size: 10px; cursor: pointer; }
+.metaAdd:hover { color: var(--accent); border-color: var(--accent); }
+
+.connectBtn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 30px; background: var(--accent); color: white; border: none; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; cursor: pointer; }
+.connectBtn:hover:not(:disabled) { filter: brightness(1.1); }
+.connectBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.spin { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.select:hover { border-color: var(--border-focus); }
+.portSelect:hover { border-color: var(--border-focus); }

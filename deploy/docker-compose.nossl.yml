@@ -1,0 +1,19 @@
+# Bu dosya Caddy'yi devre dışı bırakır, frontend'i doğrudan 8095'te açar.
+# Kullanım: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.nossl.yml up -d
+
+services:
+
+  # Frontend'i doğrudan 8095'te dışarı aç
+  frontend:
+    ports:
+      - "8095:80"
+    networks:
+      - internal
+      - web
+
+  # Caddy'yi tamamen devre dışı bırak
+  caddy:
+    deploy:
+      replicas: 0
+    profiles:
+      - disabled

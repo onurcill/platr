@@ -1,0 +1,78 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+.workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Sidebar resize handle ────────────────────────────── */
+
+.sidebarResizer {
+  width: 4px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 10;
+  transition: background 0.15s;
+}
+
+.sidebarResizer:hover,
+.sidebarResizer:active {
+  background: var(--accent);
+}
+
+/* ── Center pane ─────────────────────────────────────── */
+
+.center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+.requestPane {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  flex-shrink: 0;
+  position: relative;
+  cursor: row-resize;
+}
+
+.divider::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--border-bright);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.divider:hover::after { opacity: 1; }
+
+.responsePane {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}

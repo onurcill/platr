@@ -1,0 +1,27 @@
+# Go
+backend/*.db
+backend/vendor/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Env
+.env
+**/.env
+!deploy/.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Misc
+deploy/deploy_inner/
+deploy/{backend,frontend}/
+backend/{handler,grpcclient,history,middleware}/
+frontend/src/{components/

@@ -1,0 +1,172 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-base:        #080a0f;
+  --bg-surface:     #0e1117;
+  --bg-elevated:    #161b26;
+  --bg-hover:       #1c2130;
+  --bg-active:      #222840;
+
+  --border:         #ffffff0a;
+  --border-bright:  #ffffff16;
+  --border-focus:   #ffffff28;
+
+  --text-primary:   #eef0f6;
+  --text-secondary: #7c85a0;
+  --text-muted:     #3d4460;
+  --text-code:      #93c5fd;
+
+  /* Electric indigo accent — distinctive, not generic green */
+  --accent:         #818cf8;
+  --accent-2:       #6366f1;
+  --accent-dim:     #818cf812;
+  --accent-glow:    #818cf830;
+  --accent-border:  #818cf840;
+
+  --ok:             #34d399;
+  --ok-dim:         #34d39915;
+  --error:          #f87171;
+  --error-dim:      #f8717115;
+  --warning:        #fbbf24;
+  --warning-dim:    #fbbf2415;
+  --stream:         #e879f9;
+  --stream-dim:     #e879f915;
+
+  /* Cyan — third accent for info/network/code highlights */
+  --cyan:           #22d3ee;
+  --cyan-dim:       #22d3ee12;
+  --cyan-border:    #22d3ee35;
+
+  /* Info (alias for cyan) */
+  --info:           #38bdf8;
+  --info-dim:       #38bdf812;
+
+  --radius-xs:  3px;
+  --radius-sm:  5px;
+  --radius:     8px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+
+  --font-ui:    'Geist', system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono:  'JetBrains Mono', 'Fira Code', monospace;
+
+  --shadow-sm:  0 1px 2px #00000060;
+  --shadow-md:  0 4px 16px #00000080;
+  --shadow-lg:  0 12px 40px #000000a0;
+  --shadow-xl:  0 24px 64px #000000c0;
+
+  --transition: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="light"] {
+  --bg-base:        #f4f5f9;
+  --bg-surface:     #ffffff;
+  --bg-elevated:    #f0f1f7;
+  --bg-hover:       #e8eaf2;
+  --bg-active:      #dfe2ef;
+
+  --border:         #0000000c;
+  --border-bright:  #00000018;
+  --border-focus:   #00000028;
+
+  --text-primary:   #0e1117;
+  --text-secondary: #4a5270;
+  --text-muted:     #9aa0bc;
+  --text-code:      #3730a3;
+
+  --accent:         #4f46e5;
+  --accent-2:       #4338ca;
+  --accent-dim:     #4f46e512;
+  --accent-glow:    #4f46e525;
+  --accent-border:  #4f46e535;
+
+  --ok:             #059669;
+  --ok-dim:         #05966912;
+  --error:          #dc2626;
+  --error-dim:      #dc262612;
+  --warning:        #d97706;
+  --warning-dim:    #d9770612;
+  --stream:         #9333ea;
+  --stream-dim:     #9333ea12;
+
+  --cyan:           #0891b2;
+  --cyan-dim:       #0891b212;
+  --cyan-border:    #0891b235;
+
+  --info:           #0284c7;
+  --info-dim:       #0284c712;
+
+  --shadow-sm:  0 1px 2px #0000001a;
+  --shadow-md:  0 4px 16px #00000018;
+  --shadow-lg:  0 12px 40px #00000025;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+button {
+  cursor: pointer;
+  font-family: var(--font-ui);
+  border: none;
+  outline: none;
+  background: none;
+}
+
+input, select, textarea {
+  font-family: var(--font-ui);
+  font-size: inherit;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-sm);
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent-border);
+  background: var(--bg-surface);
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%233d4460' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px !important;
+}
+select option {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+::placeholder { color: var(--text-muted); }
+
+/* Global focus ring */
+:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 1px;
+}
+
+/* Animations */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes glow { 0%,100% { box-shadow: 0 0 8px var(--accent-glow); } 50% { box-shadow: 0 0 20px var(--accent-glow); } }
