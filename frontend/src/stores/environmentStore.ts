@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 export interface EnvVar {
   id: string
@@ -30,40 +31,48 @@ interface EnvironmentStore {
   resolveVariables: (text: string) => string
 }
 
-export const useEnvironmentStore = create<EnvironmentStore>((set, get) => ({
-  environments: [],
-  activeEnvId: null,
+export const useEnvironmentStore = create<EnvironmentStore>()(
+  persist(
+    (set, get) => ({
+      environments: [],
+      activeEnvId: null,
 
-  setEnvironments: (envs) => set({ environments: envs }),
-  setActiveEnv: (id) => set({ activeEnvId: id }),
+      setEnvironments: (envs) => set({ environments: envs }),
+      setActiveEnv: (id) => set({ activeEnvId: id }),
 
-  upsertEnvironment: (env) => set((s) => {
-    const idx = s.environments.findIndex(e => e.id === env.id)
-    if (idx >= 0) {
-      const updated = [...s.environments]
-      updated[idx] = env
-      return { environments: updated }
+      upsertEnvironment: (env) => set((s) => {
+        const idx = s.environments.findIndex(e => e.id === env.id)
+        if (idx >= 0) {
+          const updated = [...s.environments]
+          updated[idx] = env
+          return { environments: updated }
+        }
+        return { environments: [...s.environments, env] }
+      }),
+
+      removeEnvironment: (id) => set((s) => ({
+        environments: s.environments.filter(e => e.id !== id),
+        activeEnvId: s.activeEnvId === id ? null : s.activeEnvId,
+      })),
+
+      getActiveEnv: () => {
+        const { environments, activeEnvId } = get()
+        return environments.find(e => e.id === activeEnvId) ?? null
+      },
+
+      resolveVariables: (text: string) => {
+        const env = get().getActiveEnv()
+        if (!env) return text
+        let result = text
+        for (const v of env.variables) {
+          result = result.split(`{{${v.key}}}`).join(v.value)
+        }
+        return result
+      },
+    }),
+    {
+      name: 'platr-env-active',
+      partialize: (state) => ({ activeEnvId: state.activeEnvId }),
     }
-    return { environments: [...s.environments, env] }
-  }),
-
-  removeEnvironment: (id) => set((s) => ({
-    environments: s.environments.filter(e => e.id !== id),
-    activeEnvId: s.activeEnvId === id ? null : s.activeEnvId,
-  })),
-
-  getActiveEnv: () => {
-    const { environments, activeEnvId } = get()
-    return environments.find(e => e.id === activeEnvId) ?? null
-  },
-
-  resolveVariables: (text: string) => {
-    const env = get().getActiveEnv()
-    if (!env) return text
-    let result = text
-    for (const v of env.variables) {
-      result = result.split(`{{${v.key}}}`).join(v.value)
-    }
-    return result
-  },
-}))
+  )
+)

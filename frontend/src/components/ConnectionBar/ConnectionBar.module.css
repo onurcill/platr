@@ -351,23 +351,24 @@
 .themeBtn:hover { color: var(--text-primary); background: var(--bg-hover); }
 
 /* Env switcher */
+.envSwitcherWrap { position: relative; flex-shrink: 0; }
 .envSwitcher {
   display: flex; align-items: center; gap: 6px;
   background: var(--bg-elevated); border: 1px solid var(--border-bright);
   border-radius: var(--radius-sm); padding: 0 10px;
-  height: 30px; flex-shrink: 0;
+  height: 30px; flex-shrink: 0; cursor: pointer;
   transition: all var(--transition);
 }
 .envSwitcher:hover { border-color: var(--border-focus); }
-.envIcon { color: var(--accent); flex-shrink: 0; }
-.envSelect {
-  background: none; border: none; color: var(--text-secondary);
-  font-size: 11px; cursor: pointer; outline: none;
-  max-width: 130px; min-width: 60px;
-  background-image: none !important;
-  padding-right: 0 !important;
+.envSwitcherActive { border-color: var(--accent-border) !important; background: var(--accent-dim) !important; }
+.envSwitcherActive .envIcon { color: var(--accent); }
+.envIcon { color: var(--text-muted); flex-shrink: 0; transition: color var(--transition); }
+.envDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.envDropDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.envName {
+  font-size: 11px; color: var(--text-secondary);
+  max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.envSelect:hover { color: var(--text-primary); }
 
 /* Divider */
 .sep {

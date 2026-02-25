@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { PlugZap, Trash2, ChevronDown, Plus, Sun, Moon, Wifi, WifiOff, FileCode, Building2, X, Settings, Star, Zap } from 'lucide-react'
+import { PlugZap, Trash2, ChevronDown, Plus, Sun, Moon, Wifi, WifiOff, FileCode, Building2, X, Settings, Star, Zap, Layers, Check } from 'lucide-react'
 import { useConnectionStore, useThemeStore, useAuthStore } from '../../stores'
 import { api } from '../../api/client'
 import { ProtoUpload } from '../ProtoUpload'
@@ -30,11 +30,12 @@ export function ConnectionBar() {
   const [error, setError] = useState<string | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
   const [connSearch, setConnSearch] = useState('')
+  const [showEnvDropdown, setShowEnvDropdown] = useState(false)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [showProtoUpload, setShowProtoUpload] = useState(false)
   const [showK8s, setShowK8s] = useState(false)
   const [showBillingPanel, setShowBillingPanel] = useState(false)
-  const { setEnvironments } = useEnvironmentStore()
+  const { environments, activeEnvId, setEnvironments, setActiveEnv } = useEnvironmentStore()
   const { currentPlan, usage, invocationsPercent, canUseFeature } = useBillingStore()
   const canK8s = canUseFeature('k8sIntegration')
 
@@ -48,6 +49,7 @@ export function ConnectionBar() {
   }, [activeWorkspaceId])
 
   const activeConn = connections.find((c) => c.id === activeConnectionId)
+  const activeEnv = environments.find(e => e.id === activeEnvId) ?? null
 
   async function connect() {
     if (!address.trim()) return
@@ -75,9 +77,13 @@ export function ConnectionBar() {
   }
 
   async function disconnect(id: string) {
-    await api.connections.delete(id)
-    removeConnection(id)
-    if (activeConnectionId === id) setActiveConnection(null)
+    try {
+      await api.connections.delete(id)
+      removeConnection(id)
+      if (activeConnectionId === id) setActiveConnection(null)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to remove connection')
+    }
   }
 
   return (
@@ -203,6 +209,44 @@ export function ConnectionBar() {
           )}
         </div>
       )}
+
+      {/* Active environment indicator */}
+      <div className={styles.envSwitcherWrap}>
+        <div
+          className={`${styles.envSwitcher} ${activeEnv ? styles.envSwitcherActive : ''}`}
+          onClick={() => setShowEnvDropdown(v => !v)}
+          title="Switch active environment"
+        >
+          <Layers size={12} className={styles.envIcon} />
+          {activeEnv && <span className={styles.envDot} style={{ background: activeEnv.color }} />}
+          <span className={styles.envName}>{activeEnv ? activeEnv.name : 'No env'}</span>
+          <ChevronDown size={11} className={showEnvDropdown ? styles.chevronOpen : ''} />
+        </div>
+        {showEnvDropdown && (
+          <div className={styles.dropdown} onClick={e => e.stopPropagation()}>
+            {environments.map(env => (
+              <div
+                key={env.id}
+                className={`${styles.dropdownItem} ${env.id === activeEnvId ? styles.dropdownActive : ''}`}
+                onClick={() => { setActiveEnv(env.id); setShowEnvDropdown(false) }}
+              >
+                <span className={styles.envDropDot} style={{ background: env.color }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className={styles.dropdownName}>{env.name}</div>
+                </div>
+                {env.id === activeEnvId && <Check size={11} className={styles.iconGreen} />}
+              </div>
+            ))}
+            {environments.length > 0 && <div className={styles.dropdownDivider} />}
+            <div
+              className={`${styles.dropdownItem} ${!activeEnvId ? styles.dropdownActive : ''}`}
+              onClick={() => { setActiveEnv(null); setShowEnvDropdown(false) }}
+            >
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No environment</span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Meta panel */}
       {showMeta && (
