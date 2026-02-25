@@ -31,7 +31,8 @@ type uploadedKubeconfig struct {
 	Contexts       []string `json:"contexts"`
 	CurrentContext string   `json:"currentContext"`
 	UploadedAt     string   `json:"uploadedAt"`
-	filePath       string   // temp file path for kubectl
+	ownerID        string // never exported — ownership check
+	rawBytes       []byte // never exported — written to disk only when kubectl runs
 }
 
 type activeForward struct {
@@ -65,6 +66,49 @@ func NewK8sSimpleHandler(db interface {
 		forwards: make(map[string]*activeForward),
 		db:       db,
 	}
+}
+
+// writeTempKubeconfig writes kubeconfig bytes to a private temp directory
+// (mode 0700) as a file named "config" with mode 0600.
+// The returned cleanup func removes the entire temp directory — callers MUST
+// call it when kubectl no longer needs the file.
+func writeTempKubeconfig(data []byte) (path string, cleanup func(), err error) {
+	dir, err := os.MkdirTemp("", "kc-*")
+	if err != nil {
+		return "", func() {}, fmt.Errorf("create temp dir: %w", err)
+	}
+	// Ensure directory is accessible only by the current process owner.
+	if err := os.Chmod(dir, 0700); err != nil {
+		os.RemoveAll(dir)
+		return "", func() {}, fmt.Errorf("chmod temp dir: %w", err)
+	}
+	path = filepath.Join(dir, "config")
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		os.RemoveAll(dir)
+		return "", func() {}, fmt.Errorf("create kubeconfig file: %w", err)
+	}
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		os.RemoveAll(dir)
+		return "", func() {}, fmt.Errorf("write kubeconfig: %w", err)
+	}
+	f.Close()
+	return path, func() { os.RemoveAll(dir) }, nil
+}
+
+// validateContext ensures the requested context name is in the kubeconfig's
+// declared context list — prevents passing arbitrary strings to kubectl --context.
+func validateContext(ctxName string, allowed []string) bool {
+	if ctxName == "" {
+		return true // empty → kubectl uses current-context from file
+	}
+	for _, c := range allowed {
+		if c == ctxName {
+			return true
+		}
+	}
+	return false
 }
 
 // parseKubeconfigContexts extracts context names and current-context via line parsing
@@ -101,13 +145,17 @@ func parseKubeconfigContexts(data []byte) (contexts []string, currentContext str
 
 // POST /api/k8s/kubeconfigs
 func (h *K8sSimpleHandler) Upload(w http.ResponseWriter, r *http.Request) {
+	claims := auth.GetClaims(r.Context())
+	if claims == nil {
+		jsonError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	// Feature gate — K8s integration requires Professional+ plan
 	if h.db != nil {
-		if claims := auth.GetClaims(r.Context()); claims != nil {
-			if err := h.db.CheckFeatureAccess(claims.UserID, "k8s"); err != nil {
-				jsonError(w, err.Error(), http.StatusPaymentRequired)
-				return
-			}
+		if err := h.db.CheckFeatureAccess(claims.UserID, "k8s"); err != nil {
+			jsonError(w, err.Error(), http.StatusPaymentRequired)
+			return
 		}
 	}
 
@@ -151,18 +199,7 @@ func (h *K8sSimpleHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		name = "kubeconfig-" + time.Now().Format("0102-1504")
 	}
 
-	// Write to temp file so kubectl can use it
-	tmpFile, err := os.CreateTemp("", "kubeconfig-*.yaml")
-	if err != nil {
-		jsonError(w, "create temp file: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if _, err := tmpFile.Write(data); err != nil {
-		jsonError(w, "write temp file: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	tmpFile.Close()
-
+	// Raw bytes are kept only in memory — no disk write until kubectl actually runs.
 	id := generateID()
 	entry := &uploadedKubeconfig{
 		ID:             id,
@@ -170,7 +207,8 @@ func (h *K8sSimpleHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		Contexts:       contexts,
 		CurrentContext: currentContext,
 		UploadedAt:     time.Now().Format(time.RFC3339),
-		filePath:       tmpFile.Name(),
+		ownerID:        claims.UserID,
+		rawBytes:       data,
 	}
 
 	h.mu.Lock()
@@ -182,22 +220,42 @@ func (h *K8sSimpleHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/k8s/kubeconfigs
 func (h *K8sSimpleHandler) List(w http.ResponseWriter, r *http.Request) {
+	claims := auth.GetClaims(r.Context())
+	if claims == nil {
+		jsonError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	list := make([]*uploadedKubeconfig, 0, len(h.configs))
+	list := make([]*uploadedKubeconfig, 0)
 	for _, c := range h.configs {
-		list = append(list, c)
+		if c.ownerID == claims.UserID {
+			list = append(list, c)
+		}
 	}
 	jsonOK(w, map[string]interface{}{"configs": list})
 }
 
 // DELETE /api/k8s/kubeconfigs/{id}
 func (h *K8sSimpleHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	claims := auth.GetClaims(r.Context())
+	if claims == nil {
+		jsonError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	id := mux.Vars(r)["id"]
 	h.mu.Lock()
 	cfg, ok := h.configs[id]
 	if ok {
-		os.Remove(cfg.filePath)
+		if cfg.ownerID != claims.UserID {
+			h.mu.Unlock()
+			jsonError(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		// Zero out sensitive bytes before GC
+		for i := range cfg.rawBytes {
+			cfg.rawBytes[i] = 0
+		}
 		delete(h.configs, id)
 	}
 	h.mu.Unlock()
@@ -206,9 +264,19 @@ func (h *K8sSimpleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/k8s/kubeconfigs/{id}/context
 func (h *K8sSimpleHandler) SwitchContext(w http.ResponseWriter, r *http.Request) {
+	claims := auth.GetClaims(r.Context())
+	if claims == nil {
+		jsonError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 	id := mux.Vars(r)["id"]
 	h.mu.Lock()
 	cfg, ok := h.configs[id]
+	if ok && cfg.ownerID != claims.UserID {
+		h.mu.Unlock()
+		jsonError(w, "forbidden", http.StatusForbidden)
+		return
+	}
 	h.mu.Unlock()
 	if !ok {
 		jsonError(w, "config not found", http.StatusNotFound)
@@ -219,6 +287,10 @@ func (h *K8sSimpleHandler) SwitchContext(w http.ResponseWriter, r *http.Request)
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 	if req.Context != "" {
+		if !validateContext(req.Context, cfg.Contexts) {
+			jsonError(w, "invalid context", http.StatusBadRequest)
+			return
+		}
 		h.mu.Lock()
 		cfg.CurrentContext = req.Context
 		h.mu.Unlock()
@@ -228,21 +300,38 @@ func (h *K8sSimpleHandler) SwitchContext(w http.ResponseWriter, r *http.Request)
 
 // GET /api/k8s/namespaces?configId=xxx&context=yyy — runs: kubectl get namespaces
 func (h *K8sSimpleHandler) Namespaces(w http.ResponseWriter, r *http.Request) {
-	kubeconfigPath, storedCtx, err := h.resolveKubeconfig(r.URL.Query().Get("configId"))
+	claims := auth.GetClaims(r.Context())
+	if claims == nil {
+		jsonError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	rawBytes, allowedContexts, storedCtx, err := h.resolveKubeconfig(claims.UserID, r.URL.Query().Get("configId"))
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Prefer context from query param; fall back to stored CurrentContext
 	ctxName := r.URL.Query().Get("context")
 	if ctxName == "" {
 		ctxName = storedCtx
 	}
+	if !validateContext(ctxName, allowedContexts) {
+		jsonError(w, "invalid context", http.StatusBadRequest)
+		return
+	}
+
+	// Write temp file — deleted as soon as kubectl exits
+	tmpPath, cleanup, err := writeTempKubeconfig(rawBytes)
+	if err != nil {
+		jsonError(w, "internal error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer cleanup()
 
 	args := []string{"get", "namespaces", "-o", "jsonpath={.items[*].metadata.name}"}
-	if kubeconfigPath != "" {
-		args = append(args, "--kubeconfig", kubeconfigPath)
+	if tmpPath != "" {
+		args = append(args, "--kubeconfig", tmpPath)
 	}
 	if ctxName != "" {
 		args = append(args, "--context", ctxName)
@@ -276,16 +365,25 @@ func (h *K8sSimpleHandler) Namespaces(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/k8s/services?configId=xxx&context=yyy&namespace=zzz
 func (h *K8sSimpleHandler) Services(w http.ResponseWriter, r *http.Request) {
-	kubeconfigPath, storedCtx, err := h.resolveKubeconfig(r.URL.Query().Get("configId"))
+	claims := auth.GetClaims(r.Context())
+	if claims == nil {
+		jsonError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	rawBytes, allowedContexts, storedCtx, err := h.resolveKubeconfig(claims.UserID, r.URL.Query().Get("configId"))
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// Prefer context from query param; fall back to stored CurrentContext
 	ctxName := r.URL.Query().Get("context")
 	if ctxName == "" {
 		ctxName = storedCtx
+	}
+	if !validateContext(ctxName, allowedContexts) {
+		jsonError(w, "invalid context", http.StatusBadRequest)
+		return
 	}
 
 	ns := r.URL.Query().Get("namespace")
@@ -293,10 +391,17 @@ func (h *K8sSimpleHandler) Services(w http.ResponseWriter, r *http.Request) {
 		ns = "default"
 	}
 
+	tmpPath, cleanup, err := writeTempKubeconfig(rawBytes)
+	if err != nil {
+		jsonError(w, "internal error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer cleanup()
+
 	args := []string{"get", "services", "-n", ns,
 		"-o", `jsonpath={range .items[*]}{.metadata.name}{"\t"}{range .spec.ports[*]}{.name}{":"}{.port}{","}{end}{"\n"}{end}`}
-	if kubeconfigPath != "" {
-		args = append(args, "--kubeconfig", kubeconfigPath)
+	if tmpPath != "" {
+		args = append(args, "--kubeconfig", tmpPath)
 	}
 	if ctxName != "" {
 		args = append(args, "--context", ctxName)
@@ -388,7 +493,12 @@ func (h *K8sSimpleHandler) StopForward(w http.ResponseWriter, r *http.Request) {
 // Body: { configId, namespace, service, port, tls, insecure, metadata }
 func (h *K8sSimpleHandler) ForwardAndConnect(connHandler *ConnectionHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Feature gate: K8s requires Basic+ plan
+		claims := auth.GetClaims(r.Context())
+		if claims == nil {
+			jsonError(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		var req struct {
 			ConfigID  string            `json:"configId"`
 			Context   string            `json:"context"`
@@ -409,18 +519,31 @@ func (h *K8sSimpleHandler) ForwardAndConnect(connHandler *ConnectionHandler) htt
 			return
 		}
 
-		kubeconfigPath, ctxName, err := h.resolveKubeconfig(req.ConfigID)
+		rawBytes, allowedContexts, storedCtx, err := h.resolveKubeconfig(claims.UserID, req.ConfigID)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		ctxName := storedCtx
 		if req.Context != "" {
 			ctxName = req.Context
+		}
+		if !validateContext(ctxName, allowedContexts) {
+			jsonError(w, "invalid context", http.StatusBadRequest)
+			return
+		}
+
+		// Write temp file — cleaned up when kubectl port-forward process exits
+		tmpPath, cleanupFile, err := writeTempKubeconfig(rawBytes)
+		if err != nil {
+			jsonError(w, "internal error: "+err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		// Find a free local port
 		localPort, err := freePort()
 		if err != nil {
+			cleanupFile()
 			jsonError(w, "no free port: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -432,8 +555,8 @@ func (h *K8sSimpleHandler) ForwardAndConnect(connHandler *ConnectionHandler) htt
 			fmt.Sprintf("%d:%d", localPort, req.Port),
 			"-n", req.Namespace,
 		}
-		if kubeconfigPath != "" {
-			args = append(args, "--kubeconfig", kubeconfigPath)
+		if tmpPath != "" {
+			args = append(args, "--kubeconfig", tmpPath)
 		}
 		if ctxName != "" {
 			args = append(args, "--context", ctxName)
@@ -447,12 +570,14 @@ func (h *K8sSimpleHandler) ForwardAndConnect(connHandler *ConnectionHandler) htt
 		stderrPipe, err := cmd.StderrPipe()
 		if err != nil {
 			cancel()
+			cleanupFile()
 			jsonError(w, "stderr pipe: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		if err := cmd.Start(); err != nil {
 			cancel()
+			cleanupFile()
 			jsonError(w, "kubectl start: "+err.Error(), http.StatusBadGateway)
 			return
 		}
@@ -477,7 +602,7 @@ func (h *K8sSimpleHandler) ForwardAndConnect(connHandler *ConnectionHandler) htt
 		doneCh := make(chan error, 1)
 		go func() { doneCh <- cmd.Wait() }()
 
-		// Poll TCP port until open (max 10s) — more reliable than parsing stderr
+		// Poll TCP port until open (max 10s)
 		readyCh := make(chan error, 1)
 		go func() {
 			deadline := time.Now().Add(10 * time.Second)
@@ -504,11 +629,13 @@ func (h *K8sSimpleHandler) ForwardAndConnect(connHandler *ConnectionHandler) htt
 			if err != nil {
 				cancel()
 				cmd.Wait()
+				cleanupFile()
 				jsonError(w, "port-forward failed: "+err.Error(), http.StatusBadGateway)
 				return
 			}
 		case err := <-doneCh:
 			cancel()
+			cleanupFile()
 			stderrMu.Lock()
 			msg := strings.Join(stderrLines, "; ")
 			stderrMu.Unlock()
@@ -531,6 +658,7 @@ func (h *K8sSimpleHandler) ForwardAndConnect(connHandler *ConnectionHandler) htt
 		})
 		if connErr != nil {
 			cancel()
+			cleanupFile()
 			jsonError(w, "grpc connect: "+connErr.Error(), http.StatusBadGateway)
 			return
 		}
@@ -557,10 +685,11 @@ func (h *K8sSimpleHandler) ForwardAndConnect(connHandler *ConnectionHandler) htt
 		h.forwards[fwdID] = fwd
 		h.mu.Unlock()
 
-		// Watch for kubectl dying — clean up connection
+		// Watch for kubectl dying — clean up connection AND temp kubeconfig file
 		go func() {
 			<-doneCh
 			log.Printf("[k8s] port-forward ended for %s/%s", req.Namespace, req.Service)
+			cleanupFile() // temp kubeconfig no longer needed
 			h.mu.Lock()
 			delete(h.forwards, fwdID)
 			h.mu.Unlock()
@@ -575,21 +704,27 @@ func (h *K8sSimpleHandler) ForwardAndConnect(connHandler *ConnectionHandler) htt
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-func (h *K8sSimpleHandler) resolveKubeconfig(configID string) (path string, ctxName string, err error) {
+// resolveKubeconfig returns the raw kubeconfig bytes and context info for the
+// given configID, after verifying the requesting user owns the config.
+// Returns empty bytes and no error when configID is "" or "default" — kubectl
+// will fall back to ~/.kube/config in that case.
+func (h *K8sSimpleHandler) resolveKubeconfig(userID, configID string) (rawBytes []byte, allowedContexts []string, ctxName string, err error) {
 	if configID == "" || configID == "default" {
-		return "", "", nil // kubectl uses ~/.kube/config by default
+		return nil, nil, "", nil // kubectl uses ~/.kube/config
 	}
 	h.mu.RLock()
 	cfg, ok := h.configs[configID]
 	h.mu.RUnlock()
 	if !ok {
-		return "", "", fmt.Errorf("config %q not found", configID)
+		return nil, nil, "", fmt.Errorf("config %q not found", configID)
 	}
-	return cfg.filePath, cfg.CurrentContext, nil
+	if cfg.ownerID != userID {
+		return nil, nil, "", fmt.Errorf("config %q not found", configID) // same message — don't reveal existence
+	}
+	return cfg.rawBytes, cfg.Contexts, cfg.CurrentContext, nil
 }
 
 func freePort() (int, error) {
-	// Try up to 10 times to find a port that's truly free
 	for i := 0; i < 10; i++ {
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
@@ -597,9 +732,7 @@ func freePort() (int, error) {
 		}
 		port := ln.Addr().(*net.TCPAddr).Port
 		ln.Close()
-		// Brief sleep to let OS release the port
 		time.Sleep(50 * time.Millisecond)
-		// Verify it's still free
 		ln2, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 		if err != nil {
 			continue
