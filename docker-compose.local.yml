@@ -7,10 +7,12 @@ services:
       APP_ENV: production
       PORT: "8080"
       DB_PATH: /data/platr.db
-      JWT_SECRET: "${JWT_SECRET}"
+      JWT_SECRET: ${JWT_SECRET}
       APP_URL: http://localhost:3000
+      KUBECONFIG: /root/.kube/config
     volumes:
       - platr_db:/data
+      - ${KUBECONFIG_PATH:-~/.kube}:/root/.kube:ro
     networks:
       - platr
 
