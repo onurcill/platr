@@ -11,7 +11,7 @@ curl -sL https://raw.githubusercontent.com/onurcill/platr/main/docker-compose.lo
 docker compose up -d
 ```
 
-Tarayıcıda aç: **http://localhost:8095**
+Tarayıcıda aç: **http://localhost:3000**
 
 ## Güncelleme
 
