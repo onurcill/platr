@@ -72,7 +72,12 @@ func NewK8sSimpleHandler(db interface {
 // (mode 0700) as a file named "config" with mode 0600.
 // The returned cleanup func removes the entire temp directory — callers MUST
 // call it when kubectl no longer needs the file.
+// If data is empty, it returns ("", no-op, nil) so kubectl falls back to
+// the default ~/.kube/config without a --kubeconfig flag.
 func writeTempKubeconfig(data []byte) (path string, cleanup func(), err error) {
+	if len(data) == 0 {
+		return "", func() {}, nil
+	}
 	dir, err := os.MkdirTemp("", "kc-*")
 	if err != nil {
 		return "", func() {}, fmt.Errorf("create temp dir: %w", err)
@@ -99,9 +104,14 @@ func writeTempKubeconfig(data []byte) (path string, cleanup func(), err error) {
 
 // validateContext ensures the requested context name is in the kubeconfig's
 // declared context list — prevents passing arbitrary strings to kubectl --context.
+// When allowed is nil (default ~/.kube/config path), any context is permitted
+// since kubectl will validate it against the file itself.
 func validateContext(ctxName string, allowed []string) bool {
 	if ctxName == "" {
 		return true // empty → kubectl uses current-context from file
+	}
+	if len(allowed) == 0 {
+		return true // default kubeconfig — let kubectl validate the context
 	}
 	for _, c := range allowed {
 		if c == ctxName {
