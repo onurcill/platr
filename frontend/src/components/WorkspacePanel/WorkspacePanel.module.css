@@ -188,6 +188,72 @@
 .inviteBtnSending { background: var(--bg-elevated) !important; color: var(--text-muted) !important; border: 1px solid var(--border); }
 .inviteBtnSuccess { background: var(--ok-dim) !important; color: var(--ok) !important; border: 1px solid rgba(52,211,153,0.3); }
 
+/* Inline invite link box */
+.newInviteLink {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 0.15s ease;
+}
+.newInviteLinkHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.newInviteLinkHeader span { flex: 1; }
+.newInviteDismiss {
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: var(--radius-xs);
+  color: var(--accent);
+  opacity: 0.6;
+  transition: opacity var(--transition);
+  flex-shrink: 0;
+}
+.newInviteDismiss:hover { opacity: 1; }
+.newInviteLinkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-xs);
+  padding: 6px 8px;
+}
+.newInviteLinkUrl {
+  flex: 1;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.newInviteCopyBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+.newInviteCopyBtn:hover { filter: brightness(1.1); }
+
 /* Member list */
 .memberList { display: flex; flex-direction: column; gap: 4px; }
 .memberRow {
@@ -376,6 +442,7 @@
 
 /* Loading spinner */
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 .spin { animation: spin 0.7s linear infinite; }
 
 /* Optimistic pending member */

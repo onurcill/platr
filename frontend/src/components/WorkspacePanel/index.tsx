@@ -43,6 +43,10 @@ export function WorkspacePanel({ onClose }: { onClose: () => void }) {
   // Copy link state
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
 
+  // Last created invite link — shown inline after sending
+  const [lastInvite, setLastInvite] = useState<{ url: string; email: string } | null>(null)
+  const [inviteLinkCopied, setInviteLinkCopied] = useState(false)
+
   // Workspace create
   const [newWsName, setNewWsName] = useState('')
   const [creatingWs, setCreatingWs] = useState(false)
@@ -58,6 +62,7 @@ export function WorkspacePanel({ onClose }: { onClose: () => void }) {
     if (!activeWs) return
     loadMembers()
     setWsName(activeWs.name)
+    setLastInvite(null)
   }, [activeWs?.id])
 
   useEffect(() => {
@@ -111,11 +116,15 @@ export function WorkspacePanel({ onClose }: { onClose: () => void }) {
       // Add to invites list
       setInvites(inv => [{ ...data.invite ?? data, inviteUrl: data.inviteUrl }, ...inv])
 
+      // Show invite link inline so the owner can share it manually
+      const rawUrl = data.inviteUrl ?? `/invite/${(data.invite ?? data).token}`
+      setLastInvite({ url: window.location.origin + rawUrl, email })
+      setInviteLinkCopied(false)
+
       if (data.emailSent) {
         toast.success(`Invite email sent to ${email}`)
       } else {
-        toast.success(`Invite created for ${email} — copy the link below`)
-        setTab('invites')
+        toast.success(`Invite created for ${email}`)
       }
     } catch {
       setInviteEmail(email)
@@ -207,6 +216,13 @@ export function WorkspacePanel({ onClose }: { onClose: () => void }) {
     } catch {
       toast.error('Failed to delete workspace')
     }
+  }
+
+  function copyLastInviteLink() {
+    if (!lastInvite) return
+    navigator.clipboard.writeText(lastInvite.url)
+    setInviteLinkCopied(true)
+    setTimeout(() => setInviteLinkCopied(false), 2000)
   }
 
   function copyInviteLink(inviteUrl: string, token: string) {
@@ -340,6 +356,24 @@ export function WorkspacePanel({ onClose }: { onClose: () => void }) {
                         <><Mail size={12} /> Invite</>
                       )}
                     </button>
+                  </div>
+                )}
+
+                {lastInvite && (
+                  <div className={styles.newInviteLink}>
+                    <div className={styles.newInviteLinkHeader}>
+                      <Link size={11} />
+                      <span>Invite link — <strong>{lastInvite.email}</strong></span>
+                      <button className={styles.newInviteDismiss} onClick={() => setLastInvite(null)} title="Dismiss">
+                        <X size={11} />
+                      </button>
+                    </div>
+                    <div className={styles.newInviteLinkRow}>
+                      <span className={styles.newInviteLinkUrl}>{lastInvite.url}</span>
+                      <button className={styles.newInviteCopyBtn} onClick={copyLastInviteLink}>
+                        {inviteLinkCopied ? <><Check size={11} /> Copied!</> : <><Link size={11} /> Copy link</>}
+                      </button>
+                    </div>
                   </div>
                 )}
 
