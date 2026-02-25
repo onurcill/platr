@@ -1,23 +1,14 @@
-# Platr — Lokal Kurulum
-# Kullanım: docker compose up -d
-# Arayüz: http://localhost:8095
-
 services:
 
   backend:
     image: ghcr.io/onurcill/platr-backend:latest
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"] # Or a similar endpoint
-      interval: 5s
-      timeout: 3s
-      retries: 5
     environment:
       APP_ENV: production
       PORT: "8080"
       DB_PATH: /data/platr.db
-      JWT_SECRET: ${JWT_SECRET:Q1WMN5a+ibVyJgjNZtAnlttdUmSTsh3wl92hobLNZ9U=}
-      APP_URL: http://localhost:8095
+      JWT_SECRET: "${JWT_SECRET}"
+      APP_URL: http://localhost:3000
     volumes:
       - platr_db:/data
     networks:
@@ -29,8 +20,7 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     networks:
       - platr
 
